@@ -1,0 +1,161 @@
+services:
+
+  # ── JELLYFIN ─────────────────────────────────────────
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - /home/lenny/docker/jellyfin/config:/config
+      - /media/lenny/jellyfin-media/media:/media:ro
+
+  # ── PORTAINER ────────────────────────────────────────
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+  # ── PI-HOLE ──────────────────────────────────────────
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8080:80"
+    environment:
+      - TZ=Europe/London
+      - WEBPASSWORD=changeme
+    volumes:
+      - ./pihole/etc-pihole:/etc/pihole
+      - ./pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    cap_add:
+      - NET_ADMIN
+
+  # ── WATCHTOWER ───────────────────────────────────────
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKER_API_VERSION=1.40
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=0 0 4 * * *
+
+  # ── NGINX PROXY MANAGER ──────────────────────────────
+  nginx:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - ./nginx/data:/data
+      - ./nginx/letsencrypt:/etc/letsencrypt
+
+  # ── HOMEPAGE DASHBOARD ───────────────────────────────
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.152:3000
+    volumes:
+      - /docker/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # ── UPTIME KUMA ──────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uptime-kuma:/app/data
+
+  # ── SCRUTINY (drive health) ──────────────────────────
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:master-omnibus
+    container_name: scrutiny
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    volumes:
+      - /run/udev:/run/udev:ro
+      - ./scrutiny:/opt/scrutiny/config
+    cap_add:
+      - SYS_RAWIO
+      - SYS_ADMIN
+    devices:
+      - /dev/nvme0n1:/dev/nvme0n1
+      - /dev/sda:/dev/sda
+
+  # ── GLUETUN (VPN gateway) ────────────────────────────
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    ports:
+      - "8000:8000"       # Gluetun control API
+      - "8081:8081"       # qBittorrent Web UI
+      - "6881:6881"       # torrent TCP
+      - "6881:6881/udp"   # torrent UDP
+    environment:
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=openvpn
+      - OPENVPN_USER=${OPENVPN_USER}
+      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
+      - SERVER_COUNTRIES=Switzerland,Netherlands
+      - VPN_PORT_FORWARDING=on
+      - VPN_PORT_FORWARDING_PROVIDER=protonvpn
+      - TZ=Europe/London
+    volumes:
+      - /home/lenny/docker/gluetun:/gluetun
+    healthcheck:
+      test: /gluetun-entrypoint healthcheck
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── QBITTORRENT (routes through Gluetun) ─────────────
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - WEBUI_PORT=8081
+    volumes:
+      - /home/lenny/docker/qbittorrent/config:/config
+      - /media/lenny/jellyfin-media/downloads:/downloads
+
+volumes:
+  portainer_data:

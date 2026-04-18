@@ -1,0 +1,29 @@
+# Never commit credentials
+.env
+*.env
+!.env.example
+
+# Don't commit stateful service data
+jellyfin/
+qbittorrent/config/
+gluetun/
+pihole/
+nginx/
+uptime-kuma/
+scrutiny/
+portainer_data/
+
+# Backup files
+*.bak
+*.backup-*
+*.OLD
+config.new-broken/
+
+# Logs
+*.log
+
+# System / editor files
+.DS_Store
+Thumbs.db
+*.swp
+*~
