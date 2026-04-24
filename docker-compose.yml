@@ -37,6 +37,8 @@ services:
     environment:
       - TZ=Europe/London
       - WEBPASSWORD=changeme
+      - DNSMASQ_LISTENING=all
+      - FTLCONF_dns_listeningMode=all
     volumes:
       - ./pihole/etc-pihole:/etc/pihole
       - ./pihole/etc-dnsmasq.d:/etc/dnsmasq.d
@@ -76,9 +78,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.152:3000
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.152:3000,100.104.31.59:3000
     volumes:
-      - /docker/homepage:/app/config
+      - /home/lenny/docker/homepage:/app/config
       - /var/run/docker.sock:/var/run/docker.sock
 
   # ── UPTIME KUMA ──────────────────────────────────────
@@ -108,7 +110,7 @@ services:
       - /dev/nvme0n1:/dev/nvme0n1
       - /dev/sda:/dev/sda
 
-  # ── GLUETUN (VPN gateway) ────────────────────────────
+  # ── GLUETUN (VPN gateway - WireGuard) ────────────────
   gluetun:
     image: qmcgaw/gluetun:latest
     container_name: gluetun
@@ -118,16 +120,17 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     ports:
-      - "8000:8000"       # Gluetun control API
-      - "8081:8081"       # qBittorrent Web UI
-      - "6881:6881"       # torrent TCP
-      - "6881:6881/udp"   # torrent UDP
+      - "8000:8000"
+      - "8081:8081"
+      - "6881:6881"
+      - "6881:6881/udp"
     environment:
       - VPN_SERVICE_PROVIDER=protonvpn
-      - VPN_TYPE=openvpn
-      - OPENVPN_USER=${OPENVPN_USER}
-      - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
-      - SERVER_COUNTRIES=Switzerland,Netherlands
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
+      - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUBLIC_KEY}
+      - WIREGUARD_ADDRESSES=10.2.0.2/32
+      - SERVER_COUNTRIES=Switzerland
       - VPN_PORT_FORWARDING=on
       - VPN_PORT_FORWARDING_PROVIDER=protonvpn
       - TZ=Europe/London

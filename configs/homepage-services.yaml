@@ -17,6 +17,10 @@
         href: http://192.168.1.152:3001
         description: Service Monitoring
         icon: uptime-kuma.png
+    - Cockpit:
+        href: https://192.168.1.152:9090
+        description: System Management
+        icon: cockpit.png
 
 - Network:
     - Gluetun:
@@ -36,6 +40,6 @@
 
 - Home:
     - Home Assistant:
-        href: http://homeassistant.local:8123
+        href: http://192.168.1.124:8123
         description: Home Automation
         icon: home-assistant.png
