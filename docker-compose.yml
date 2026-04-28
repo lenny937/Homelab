@@ -6,10 +6,15 @@ services:
     container_name: jellyfin
     restart: unless-stopped
     network_mode: host
+    devices:
+      - /dev/dri:/dev/dri
+   
     environment:
       - PUID=1000
-      - PGID=1000
+      - PGID=992
       - TZ=Europe/London
+      - JELLYFIN_ADDITIONAL_GIDS=992,44
+
     volumes:
       - /home/lenny/docker/jellyfin/config:/config
       - /media/lenny/jellyfin-media/media:/media:ro
@@ -36,16 +41,16 @@ services:
       - "8080:80"
     environment:
       - TZ=Europe/London
-      - WEBPASSWORD=changeme
+      - WEBPASSWORD=${PIHOLE_PASSWORD}
       - DNSMASQ_LISTENING=all
       - FTLCONF_dns_listeningMode=all
+      - FTLCONF_webserver_domain=pihole.lennyhomelab.co.uk
     volumes:
       - ./pihole/etc-pihole:/etc/pihole
       - ./pihole/etc-dnsmasq.d:/etc/dnsmasq.d
     cap_add:
       - NET_ADMIN
-
-  # ── WATCHTOWER ───────────────────────────────────────
+  # ── WATCHTOWER (auto-updates containers) ─────────────
   watchtower:
     image: containrrr/watchtower:latest
     container_name: watchtower
@@ -55,7 +60,7 @@ services:
     environment:
       - DOCKER_API_VERSION=1.40
       - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_SCHEDULE=0 0 4 * * *
+      - WATCHTOWER_SCHEDULE=0 0 4 * * *    # runs at 4am daily
 
   # ── NGINX PROXY MANAGER ──────────────────────────────
   nginx:
@@ -65,7 +70,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "81:81"
+      - "81:81"       # Admin UI
     volumes:
       - ./nginx/data:/data
       - ./nginx/letsencrypt:/etc/letsencrypt
@@ -78,12 +83,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.152:3000,100.104.31.59:3000
+      - HOMEPAGE_ALLOWED_HOSTS=192.168.1.152:3000,100.104.31.59:3000,homepage.lennyhomelab.co.uk
     volumes:
       - /home/lenny/docker/homepage:/app/config
       - /var/run/docker.sock:/var/run/docker.sock
 
-  # ── UPTIME KUMA ──────────────────────────────────────
+  # ── UPTIME KUMA (monitoring) ─────────────────────────
   uptime-kuma:
     image: louislam/uptime-kuma:latest
     container_name: uptime-kuma
@@ -108,9 +113,9 @@ services:
       - SYS_ADMIN
     devices:
       - /dev/nvme0n1:/dev/nvme0n1
-      - /dev/sda:/dev/sda
+      - /dev/sda:/dev/sda    # ← add all your drives here
 
-  # ── GLUETUN (VPN gateway - WireGuard) ────────────────
+# ── GLUETUN (VPN gateway for qBittorrent) ────────────
   gluetun:
     image: qmcgaw/gluetun:latest
     container_name: gluetun
@@ -120,20 +125,20 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     ports:
-      - "8000:8000"
-      - "8081:8081"
-      - "6881:6881"
-      - "6881:6881/udp"
+      - "8000:8000"       # ← add this for Homepage widget
+      - "8081:8081"     # qBittorrent Web UI
+      - "6881:6881"     # torrent TCP
+      - "6881:6881/udp" # torrent UDP
     environment:
       - VPN_SERVICE_PROVIDER=protonvpn
       - VPN_TYPE=wireguard
       - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY}
       - WIREGUARD_PUBLIC_KEY=${WIREGUARD_PUBLIC_KEY}
       - WIREGUARD_ADDRESSES=10.2.0.2/32
-      - SERVER_COUNTRIES=Switzerland
       - VPN_PORT_FORWARDING=on
       - VPN_PORT_FORWARDING_PROVIDER=protonvpn
       - TZ=Europe/London
+      - SERVER_COUNTRIES=Switzerland
     volumes:
       - /home/lenny/docker/gluetun:/gluetun
     healthcheck:
@@ -153,12 +158,24 @@ services:
       - gluetun
     environment:
       - PUID=1000
-      - PGID=1000
+      - PGID=992
       - TZ=Europe/London
       - WEBUI_PORT=8081
     volumes:
       - /home/lenny/docker/qbittorrent/config:/config
-      - /media/lenny/jellyfin-media/downloads:/downloads
+      - /home/lenny/Downloads:/downloads
+      
+
+  # ── CLOUDFLARE TUNNEL ────────────────────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   portainer_data:

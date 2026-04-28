@@ -1,6 +1,6 @@
 - Media:
     - Jellyfin:
-        href: http://192.168.1.152:8096
+        href: https://jellyfin.lennyhomelab.co.uk
         description: Media Server
         icon: jellyfin.png
     - qBittorrent:
@@ -17,6 +17,10 @@
         href: http://192.168.1.152:3001
         description: Service Monitoring
         icon: uptime-kuma.png
+    - Scrutiny:
+        href: http://192.168.1.152:8082/web/dashboard
+        description: Drive health (SMART)
+        icon: scrutiny.png
     - Cockpit:
         href: https://192.168.1.152:9090
         description: System Management
@@ -28,18 +32,6 @@
         description: VPN gateway (Proton CH)
         icon: gluetun.png
     - Pi-hole:
-        href: http://192.168.1.152:8080/admin
+        href: https://pihole.lennyhomelab.co.uk/admin
         description: DNS & ad blocking
         icon: pi-hole.png
-
-- System:
-    - Scrutiny:
-        href: http://192.168.1.152:8082
-        description: Drive Health
-        icon: scrutiny.png
-
-- Home:
-    - Home Assistant:
-        href: http://192.168.1.124:8123
-        description: Home Automation
-        icon: home-assistant.png
